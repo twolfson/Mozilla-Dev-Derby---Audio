@@ -1,20 +1,27 @@
 (function () {
 // TODO: Feature detection
-var audioOutput = new Audio();
-audioOutput.mozSetup(2, 44100);
+var audioOutput = new Audio(),
+    channels = 2,
+    sampleRate = 44100;
+audioOutput.mozSetup(channels, sampleRate);
 
 // Set up sample sound
 // TODO: Modify based on mouse location
-var samples = new Float32Array(22050);
+var pulseLength = 22050,
+    samples = new Float32Array(pulseLength);
 for (var i = 0; i < samples.length ; i++) {
  samples[i] = Math.sin( i / 20 );
 }
-function writeSound() {
+
+var soundLength = 1e3 * pulseLength / (sampleRate * channels);
+function writeSound(callback) {
   audioOutput.mozWriteAudio(samples);
+  setTimeout(callback, soundLength);
 }
 
-// When the person initially clicks
-// TODO: Objectify mouse watcher
+// Attribution to https://raw.github.com/jeromeetienne/microevent.js/master/microevent.js
+function MicroEvent() {}
+MicroEvent.prototype={on:function(a,b){this._events=this._events||{};this._events[a]=this._events[a]||[];this._events[a].push(b)},off:function(a,b){this._events=this._events||{};!1!==a in this._events&&this._events[a].splice(this._events[a].indexOf(b),1)},emit:function(a){this._events=this._events||{};if(!1!==a in this._events)for(var b=0;b<this._events[a].length;b++)this._events[a][b].apply(this,[].slice.call(arguments,1))}}; MicroEvent.mixin=function(a){for(var b=["on","off","emit"],c=0;c<b.length;c++)a.prototype[b[c]]=MicroEvent.prototype[b[c]]};
 
 var body = document.body;
 function MouseWatcher() {
@@ -24,20 +31,32 @@ function MouseWatcher() {
 
   this.mousemove = function (e) {
     // Record the mouse location
-    that.x = e.clientX;
-    that.y = e.clientY;
+    var x = that.x = e.clientX,
+        y = that.y = e.clientY;
+
+    // Emit an event
+    that.emit('move', x, y);
   };
 
   this.mousedown = function (e) {
     // Record the mouse location
-    that.x = e.clientX;
-    that.y = e.clientY;
+    var x = that.x = e.clientX,
+        y = that.y = e.clientY;
 
     // Bind the mouse movements
     that.bindMove();
+
+    // Emit an event
+    that.emit('down', x, y);
   };
 
-  this.mouseup = function () { that.unbindMove(); };
+  this.mouseup = function () {
+    // Unbind the mouse movements
+    that.unbindMove();
+
+    // Emit an event
+    that.emit('up', true);
+  };
 }
 MouseWatcher.prototype = {
   'bindMove': function () {
@@ -58,8 +77,32 @@ MouseWatcher.prototype = {
     return this;
   }
 };
+// Mixin events to MouseWatcher
+MicroEvent.mixin(MouseWatcher);
 
 // Create a new MouseWatcher
 var mouse = new MouseWatcher();
 mouse.start();
+
+
+// Set up sound actions
+var callAgain = false;
+function soundOut() {
+  writeSound(function () {
+    if (callAgain) {
+      soundOut();
+    }
+  });
+}
+
+// When the person initially clicks, send out a sound
+mouse.on('down', function (x, y) {
+  callAgain = true;
+  soundOut();
+});
+
+// When the person click is released, stop sending sounds
+mouse.on('up', function (x, y) {
+  callAgain = false;
+});
 }());
