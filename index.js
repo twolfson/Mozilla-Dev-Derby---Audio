@@ -1,23 +1,52 @@
 (function () {
+function noop() {}
+
 // TODO: Feature detection
 var audioOutput = new Audio(),
-    channels = 2,
+    channels = 1,
     sampleRate = 44100;
 audioOutput.mozSetup(channels, sampleRate);
 
 // Set up sample sound
 // TODO: Modify based on mouse location
-var pulseLength = 22050,
-    samples = new Float32Array(pulseLength);
-for (var i = 0; i < samples.length ; i++) {
- samples[i] = Math.sin( i / 20 );
+var buffer = new Float32Array();
+function writeSound(pulseLength) {
+  // Set up array for sound out
+  var offset = buffer.length,
+      i = 0,
+      len = pulseLength,
+  // Regenerate the new buffer
+      newBuffer = new Float32Array(offset + len);
+
+  // Save the old items on the new buffer
+  newBuffer.set(buffer);
+
+  // Add the new items to the new buffer
+  for (; i < len; i++) {
+   newBuffer[offset + i] = Math.sin(i / pulseLength);
+  }
+
+  // Overwrite the old buffer
+  buffer = newBuffer;
 }
 
-var soundLength = 1e3 * pulseLength / (sampleRate * channels);
-function writeSound(callback) {
-  audioOutput.mozWriteAudio(samples);
-  setTimeout(callback, soundLength);
-}
+// On a setInterval, output the buffer
+setInterval(function () {
+  // If the buffer is empty, do nothing
+  // console.log(buffer);
+  if (buffer.length === 0) { return; }
+
+  // Otherwise, output the buffer
+  var hzWritten = audioOutput.mozWriteAudio(buffer);
+console.log(hzWritten, buffer.length);
+  // Remove the chunk of buffer that was just written
+  // buffer = buffer.subarray(hzWritten);
+}, 100);
+
+
+writeSound(44100);
+writeSound(20000);
+writeSound(5000);
 
 // Attribution to https://raw.github.com/jeromeetienne/microevent.js/master/microevent.js
 function MicroEvent() {}
@@ -88,7 +117,7 @@ mouse.start();
 // Set up sound actions
 var callAgain = false;
 function soundOut() {
-  writeSound(function () {
+  writeSound(22050, function () {
     if (callAgain) {
       soundOut();
     }
