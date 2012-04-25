@@ -116,20 +116,23 @@ SoundMaker.prototype = {
 
 // Create the sound file
 var sound1 = new SoundMaker(),
-    direction = 1,
-    frequency = 300;
+    sound1Direction = 1,
+    sound1Frequency = 300;
 
-// TODO: Integrate these into the constructor
-sound1.start(frequency);
+sound1.start(sound1Frequency);
 
 setInterval(function () {
-  frequency += Math.random() * 20 * direction;
-  sound1.start(frequency);
+  sound1Frequency += Math.random() * 20 * sound1Direction;
+  sound1.start(sound1Frequency);
 }, 100);
 
 setInterval(function () {
-  direction *= -1;
+  sound1Direction *= -1;
 }, 1000);
+
+
+var sound2 = new SoundMaker();
+sound2.start(700);
 
 return;
 // function writeSound(pulseLength) {
