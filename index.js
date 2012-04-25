@@ -59,8 +59,7 @@ function SoundMaker(sampleRate) {
     // If there is room available in the prebuffer
     if (available > 0) {
       // Create some new soundData to place in the tail
-      var soundData = new Float32Array(parseFloat(available));
-      that.requestSound(soundData);
+      var soundData = that.requestSound(available);
 
       // Add the new sound data set to the output
       written = audioOutput.mozWriteAudio(soundData);
@@ -78,21 +77,17 @@ function SoundMaker(sampleRate) {
 SoundMaker.prototype = {
   '_frequency': 0,
   '_sampleRate': 44100,
-  '_currentSoundSample': null,
-  'currentSoundSample': function (currentSoundSample) {
-    // TODO: Make this a bi-getter/setter
-    this._currentSoundSample = currentSoundSample;
-  },
-  'frequency': function (frequency) {
-    // TODO: Make this a bi-getter/setter
+  '_currentSoundSample': 0,
+  'start': function (frequency) {
     this._frequency = frequency;
   },
-  'sampleRate': function (sampleRate) {
-    // TODO: Make this a bi-getter/setter
-    this._sampleRate = sampleRate;
+  'stop': function () {
+    this._frequency = 0;
   },
-  'requestSound': function (soundData) {
-    var frequency = this._frequency,
+  'requestSound': function (timeOpen) {
+    // Create a sound that will run for the remaining amount of time we have left
+    var retBuffer = new Float32Array(parseFloat(timeOpen)),
+        frequency = this._frequency,
         sampleRate = this._sampleRate,
         currentSoundSample = this._currentSoundSample;
 
@@ -105,13 +100,17 @@ SoundMaker.prototype = {
 
     // Loop through the sound wave and save the pitches
         i = 0,
-        len = soundData.length;
+        len = timeOpen;
     for (; i < len; i++) {
-      soundData[i] = Math.sin(k * currentSoundSample++);
+      // TODO: What does currentSoundSample do?
+      retBuffer[i] = Math.sin(k * currentSoundSample++);
     }
 
     // Save the new currentSoundSample
-    this.currentSoundSample(currentSoundSample);
+    this._currentSoundSample = currentSoundSample;
+
+    // Return the buffer
+    return retBuffer;
   }
 };
 
@@ -121,12 +120,11 @@ var sound1 = new SoundMaker(),
     frequency = 300;
 
 // TODO: Integrate these into the constructor
-sound1.frequency(frequency);
-sound1.currentSoundSample(0);
+sound1.start(frequency);
 
 setInterval(function () {
   frequency += Math.random() * 20 * direction;
-  sound1.frequency(frequency);
+  sound1.start(frequency);
 }, 100);
 
 setInterval(function () {
