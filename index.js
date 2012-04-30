@@ -199,18 +199,76 @@ MouseWatcher.prototype = {
 // Mixin events to MouseWatcher
 MicroEvent.mixin(MouseWatcher);
 
+// Set up constants for canvas and pulser
+var OCTAVES = 16,
+    PITCHES = 32;
+    
+// Canvas time
+var canvasElt = document.getElementById('canvas'),
+    canvas = canvasElt.getContext('2d'),
+    height = window.innerHeight,
+    width = window.innerWidth,
+    slate = {
+      'drawBg': function () {
+        // Paint a slate gray background
+        canvas.fillStyle = '#999999';
+        canvas.fillRect(0, 0, width, height);
+        
+        // Add some white dots for demarcation
+        canvas.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        var i = 0,
+            len = PITCHES,
+            x,
+            j,
+            len2 = OCTAVES,
+            y;
+        for (; i < len; i++) {
+          x = (i + .5) * width/len;
+          for (j = 0; j < len2; j++) {
+            y = (j + .5) * height/len2;
+            canvas.moveTo(x, y);
+            canvas.beginPath();
+            canvas.arc(x, y, 3, 0, 360);
+            canvas.fill();
+          }
+        }
+      },
+      'drawWelcomeText': function () {
+        canvas.fillStyle = '#000000';
+        canvas.font = '20px Helvetica, Arial, sans-serif';
+        canvas.fillText('Audio Playground', 20, 30);
+        canvas.font = '14px Helvetica, Arial, sans-serif';
+        canvas.fillText('Turn on your speakers and click on the grey background to begin!', 20, 50);
+      }
+    };
+
+// Make the canvas full size
+canvasElt.height = canvas.height = height;
+canvasElt.width = canvas.width = width;
+
+// Draw the background and welcome text
+slate.drawBg();
+slate.drawWelcomeText();
+
 // Create a new MouseWatcher
 var mouse = new MouseWatcher();
 mouse.start();
-
 
 // Set up sound actions
 var callAgain = false,
     pulse1 = new Pulser();
 
+// TODO: The lowest octave bound is 1 below middle c
+var MIDDLE_C = 261.626,
+    MAX_C = MIDDLE_C * Math.pow(2, 3),
+    DIFF_C = MAX_C - MIDDLE_C;
+
 function soundOut() {
-  console.log(mouse.x, (window.innerHeight - mouse.y));
-  pulse1.pulse(mouse.x * 2 + (window.innerHeight - mouse.y) * .5, 100, function () {
+  var percentX = mouse.x / width,
+      percentY = 1 - mouse.y / height,
+      squareRatio = DIFF_C * (percentX / 3) + (percentY * 2/3);
+  // TODO: Work on the equation?
+  pulse1.pulse(MIDDLE_C + squareRatio, 100, function () {
     if (callAgain) {
       soundOut();
     }
@@ -227,7 +285,4 @@ mouse.on('down', function (x, y) {
 mouse.on('up', function (x, y) {
   callAgain = false;
 });
-
-// Expose pulser for fun times
-window.Pulser = Pulser;
 }());
