@@ -27,6 +27,7 @@ function SoundMaker(sampleRate) {
   audioOutput.mozSetup(1, sampleRate);
 
   // Save sample rate and audioOutput for later
+  this._prebufferSize = prebufferSize;
   this._sampleRate = sampleRate;
   this._audio = audioOutput;
 
@@ -121,7 +122,10 @@ SoundMaker.prototype = {
 function Pulser() {
 }
 Pulser.prototype = {
-  'pulse': function (freq, length) {
+  'pulse': function (freq, length, callback) {
+    // Fallback callback
+    callback = callback || noop;
+
     var sound = new SoundMaker();
 
     sound.start(freq);
@@ -129,105 +133,101 @@ Pulser.prototype = {
     setTimeout(function () {
       // TODO: Make SoundMaker.stop cleaner so we don't have to keep on creating new ones
       sound.destroy();
+      setTimeout(callback, 500);
     }, length);
   }
 };
 
-// Create the sound file
-var pulse1 = new Pulser();
-
-pulse1.pulse(300, 1000);
-setTimeout(function () {
-  pulse1.pulse(320, 1000);
-}, 2000);
-
-
-return;
-
 // Attribution to https://raw.github.com/jeromeetienne/microevent.js/master/microevent.js
-// function MicroEvent() {}
-// MicroEvent.prototype={on:function(a,b){this._events=this._events||{};this._events[a]=this._events[a]||[];this._events[a].push(b)},off:function(a,b){this._events=this._events||{};!1!==a in this._events&&this._events[a].splice(this._events[a].indexOf(b),1)},emit:function(a){this._events=this._events||{};if(!1!==a in this._events)for(var b=0;b<this._events[a].length;b++)this._events[a][b].apply(this,[].slice.call(arguments,1))}}; MicroEvent.mixin=function(a){for(var b=["on","off","emit"],c=0;c<b.length;c++)a.prototype[b[c]]=MicroEvent.prototype[b[c]]};
+function MicroEvent() {}
+MicroEvent.prototype={on:function(a,b){this._events=this._events||{};this._events[a]=this._events[a]||[];this._events[a].push(b)},off:function(a,b){this._events=this._events||{};!1!==a in this._events&&this._events[a].splice(this._events[a].indexOf(b),1)},emit:function(a){this._events=this._events||{};if(!1!==a in this._events)for(var b=0;b<this._events[a].length;b++)this._events[a][b].apply(this,[].slice.call(arguments,1))}}; MicroEvent.mixin=function(a){for(var b=["on","off","emit"],c=0;c<b.length;c++)a.prototype[b[c]]=MicroEvent.prototype[b[c]]};
 
-// var body = document.body;
-// function MouseWatcher() {
-  // var that = this;
-  // this.x = 0;
-  // this.y = 0;
+var body = document.body;
+function MouseWatcher() {
+  var that = this;
+  this.x = 0;
+  this.y = 0;
 
-  // this.mousemove = function (e) {
-    // // Record the mouse location
-    // var x = that.x = e.clientX,
-        // y = that.y = e.clientY;
+  this.mousemove = function (e) {
+    // Record the mouse location
+    var x = that.x = e.clientX,
+        y = that.y = e.clientY;
 
-    // // Emit an event
-    // that.emit('move', x, y);
-  // };
+    // Emit an event
+    that.emit('move', x, y);
+  };
 
-  // this.mousedown = function (e) {
-    // // Record the mouse location
-    // var x = that.x = e.clientX,
-        // y = that.y = e.clientY;
+  this.mousedown = function (e) {
+    // Record the mouse location
+    var x = that.x = e.clientX,
+        y = that.y = e.clientY;
 
-    // // Bind the mouse movements
-    // that.bindMove();
+    // Bind the mouse movements
+    that.bindMove();
 
-    // // Emit an event
-    // that.emit('down', x, y);
-  // };
+    // Emit an event
+    that.emit('down', x, y);
+  };
 
-  // this.mouseup = function () {
-    // // Unbind the mouse movements
-    // that.unbindMove();
+  this.mouseup = function () {
+    // Unbind the mouse movements
+    that.unbindMove();
 
-    // // Emit an event
-    // that.emit('up', true);
-  // };
-// }
-// MouseWatcher.prototype = {
-  // 'bindMove': function () {
-    // body.addEventListener('mousemove', this.mousemove, false);
-    // body.addEventListener('mouseup', this.mouseup, false);
-  // },
-  // 'unbindMove': function () {
-    // body.removeEventListener('mousemove', this.mousemove, false);
-    // body.removeEventListener('mouseup', this.mouseup, false);
-  // },
-  // 'start': function () {
-    // body.addEventListener('mousedown', this.mousedown, false);
-    // return this;
-  // },
-  // 'stop': function () {
-    // body.removeEventListener('mousedown', this.mousedown, false);
-    // this.unbindMove();
-    // return this;
-  // }
-// };
-// // Mixin events to MouseWatcher
-// MicroEvent.mixin(MouseWatcher);
+    // Emit an event
+    that.emit('up', true);
+  };
+}
+MouseWatcher.prototype = {
+  'bindMove': function () {
+    body.addEventListener('mousemove', this.mousemove, false);
+    body.addEventListener('mouseup', this.mouseup, false);
+  },
+  'unbindMove': function () {
+    body.removeEventListener('mousemove', this.mousemove, false);
+    body.removeEventListener('mouseup', this.mouseup, false);
+  },
+  'start': function () {
+    body.addEventListener('mousedown', this.mousedown, false);
+    return this;
+  },
+  'stop': function () {
+    body.removeEventListener('mousedown', this.mousedown, false);
+    this.unbindMove();
+    return this;
+  }
+};
+// Mixin events to MouseWatcher
+MicroEvent.mixin(MouseWatcher);
 
-// // Create a new MouseWatcher
-// var mouse = new MouseWatcher();
-// mouse.start();
+// Create a new MouseWatcher
+var mouse = new MouseWatcher();
+mouse.start();
 
 
-// // Set up sound actions
-// var callAgain = false;
-// function soundOut() {
-  // writeSound(22050, function () {
-    // if (callAgain) {
-      // soundOut();
-    // }
-  // });
-// }
+// Set up sound actions
+var callAgain = false,
+    pulse1 = new Pulser();
 
-// // When the person initially clicks, send out a sound
-// mouse.on('down', function (x, y) {
-  // callAgain = true;
-  // soundOut();
-// });
+function soundOut() {
+  console.log(mouse.x, (window.innerHeight - mouse.y));
+  pulse1.pulse(mouse.x * 2 + (window.innerHeight - mouse.y) * .5, 100, function () {
+    if (callAgain) {
+      soundOut();
+    }
+  });
+}
 
-// // When the person click is released, stop sending sounds
-// mouse.on('up', function (x, y) {
-  // callAgain = false;
-// });
+// When the person initially clicks, send out a sound
+mouse.on('down', function (x, y) {
+  callAgain = true;
+  soundOut();
+});
+
+// When the person click is released, stop sending sounds
+mouse.on('up', function (x, y) {
+  callAgain = false;
+});
+
+// Expose pulser for fun times
+window.Pulser = Pulser;
 }());
