@@ -3,7 +3,6 @@ function noop() {}
 
 // TODO: Feature detection for Audio
 // TODO: Modify based on mouse location
-// TODO: Test out multiple SoundMakers
 /**
  * Constructor function for SoundMaker
  * @param {Number} [sampleRate] Sample rate that the SoundMaker will use
@@ -82,7 +81,12 @@ SoundMaker.prototype = {
     this._frequency = frequency;
   },
   'stop': function () {
+    this._currentSoundSample = 0;
     this._frequency = 0;
+  },
+  'destroy': function () {
+    this.stop();
+    this._audio = null;
   },
   'requestSound': function (timeOpen) {
     // Create a sound that will run for the remaining amount of time we have left
@@ -92,7 +96,7 @@ SoundMaker.prototype = {
         currentSoundSample = this._currentSoundSample;
 
     // If nothing is being output, skip it
-    if (!frequency) { return; }
+    if (!frequency) { return new Float32Array; }
 
     // Determine the length of the sound wave
     var radians = 2 * Math.PI * frequency,
@@ -114,64 +118,31 @@ SoundMaker.prototype = {
   }
 };
 
+function Pulser() {
+}
+Pulser.prototype = {
+  'pulse': function (freq, length) {
+    var sound = new SoundMaker();
+
+    sound.start(freq);
+
+    setTimeout(function () {
+      // TODO: Make SoundMaker.stop cleaner so we don't have to keep on creating new ones
+      sound.destroy();
+    }, length);
+  }
+};
+
 // Create the sound file
-var sound1 = new SoundMaker(),
-    sound1Direction = 1,
-    sound1Frequency = 300;
+var pulse1 = new Pulser();
 
-sound1.start(sound1Frequency);
+pulse1.pulse(300, 1000);
+setTimeout(function () {
+  pulse1.pulse(320, 1000);
+}, 2000);
 
-setInterval(function () {
-  sound1Frequency += Math.random() * 20 * sound1Direction;
-  sound1.start(sound1Frequency);
-}, 100);
-
-setInterval(function () {
-  sound1Direction *= -1;
-}, 1000);
-
-
-var sound2 = new SoundMaker();
-sound2.start(700);
 
 return;
-// function writeSound(pulseLength) {
-  // // Set up array for sound out
-  // var offset = buffer.length,
-      // i = 0,
-      // len = pulseLength,
-  // // Regenerate the new buffer
-      // newBuffer = new Float32Array(offset + len);
-
-  // // Save the old items on the new buffer
-  // newBuffer.set(buffer);
-
-  // // Add the new items to the new buffer
-  // for (; i < len; i++) {
-   // newBuffer[offset + i] = Math.sin(i / pulseLength);
-  // }
-
-  // // Overwrite the old buffer
-  // buffer = newBuffer;
-// }
-
-// // On a setInterval, output the buffer
-// setInterval(function () {
-  // // If the buffer is empty, do nothing
-  // // console.log(buffer);
-  // if (buffer.length === 0) { return; }
-
-  // // Otherwise, output the buffer
-  // var hzWritten = audioOutput.mozWriteAudio(buffer);
-// console.log(hzWritten, buffer.length);
-  // // Remove the chunk of buffer that was just written
-  // // buffer = buffer.subarray(hzWritten);
-// }, 100);
-
-
-// writeSound(44100);
-// writeSound(20000);
-// writeSound(5000);
 
 // Attribution to https://raw.github.com/jeromeetienne/microevent.js/master/microevent.js
 // function MicroEvent() {}
