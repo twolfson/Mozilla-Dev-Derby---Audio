@@ -138,71 +138,13 @@ Pulser.prototype = {
   }
 };
 
-// Attribution to https://raw.github.com/jeromeetienne/microevent.js/master/microevent.js
-function MicroEvent() {}
-MicroEvent.prototype={on:function(a,b){this._events=this._events||{};this._events[a]=this._events[a]||[];this._events[a].push(b)},off:function(a,b){this._events=this._events||{};!1!==a in this._events&&this._events[a].splice(this._events[a].indexOf(b),1)},emit:function(a){this._events=this._events||{};if(!1!==a in this._events)for(var b=0;b<this._events[a].length;b++)this._events[a][b].apply(this,[].slice.call(arguments,1))}}; MicroEvent.mixin=function(a){for(var b=["on","off","emit"],c=0;c<b.length;c++)a.prototype[b[c]]=MicroEvent.prototype[b[c]]};
-
+// TODO: Scrap this?
 var body = document.body;
-function MouseWatcher() {
-  var that = this;
-  this.x = 0;
-  this.y = 0;
-
-  this.mousemove = function (e) {
-    // Record the mouse location
-    var x = that.x = e.clientX,
-        y = that.y = e.clientY;
-
-    // Emit an event
-    that.emit('move', x, y);
-  };
-
-  this.mousedown = function (e) {
-    // Record the mouse location
-    var x = that.x = e.clientX,
-        y = that.y = e.clientY;
-
-    // Bind the mouse movements
-    that.bindMove();
-
-    // Emit an event
-    that.emit('down', x, y);
-  };
-
-  this.mouseup = function () {
-    // Unbind the mouse movements
-    that.unbindMove();
-
-    // Emit an event
-    that.emit('up', true);
-  };
-}
-MouseWatcher.prototype = {
-  'bindMove': function () {
-    body.addEventListener('mousemove', this.mousemove, false);
-    body.addEventListener('mouseup', this.mouseup, false);
-  },
-  'unbindMove': function () {
-    body.removeEventListener('mousemove', this.mousemove, false);
-    body.removeEventListener('mouseup', this.mouseup, false);
-  },
-  'start': function () {
-    body.addEventListener('mousedown', this.mousedown, false);
-    return this;
-  },
-  'stop': function () {
-    body.removeEventListener('mousedown', this.mousedown, false);
-    this.unbindMove();
-    return this;
-  }
-};
-// Mixin events to MouseWatcher
-MicroEvent.mixin(MouseWatcher);
 
 // Set up constants for canvas and pulser
 var OCTAVES = 16,
     PITCHES = 32;
-    
+
 // Canvas time
 var canvasElt = document.getElementById('canvas'),
     canvas = canvasElt.getContext('2d'),
@@ -213,7 +155,7 @@ var canvasElt = document.getElementById('canvas'),
         // Paint a slate gray background
         canvas.fillStyle = '#999999';
         canvas.fillRect(0, 0, width, height);
-        
+
         // Add some white dots for demarcation
         canvas.fillStyle = 'rgba(255, 255, 255, 0.2)';
         var i = 0,
@@ -239,6 +181,7 @@ var canvasElt = document.getElementById('canvas'),
         canvas.fillText('Audio Playground', 20, 30);
         canvas.font = '14px Helvetica, Arial, sans-serif';
         canvas.fillText('Turn on your speakers and click on the grey background to begin!', 20, 50);
+        canvas.fillText('Multi-touch is supported. To play with this in a non-touch environment, use shift + click to add touches and ctrl + click to remove them.', 20, 70);
       }
     };
 
@@ -250,39 +193,60 @@ canvasElt.width = canvas.width = width;
 slate.drawBg();
 slate.drawWelcomeText();
 
-// Create a new MouseWatcher
-var mouse = new MouseWatcher();
-mouse.start();
-
-// Set up sound actions
-var callAgain = false,
-    pulse1 = new Pulser();
-
-// TODO: The lowest octave bound is 1 below middle c
-var MIDDLE_C = 261.626,
-    MAX_C = MIDDLE_C * Math.pow(2, 3),
+// Set up touch map
+var touchMap = {},
+    MIDDLE_C = 261.626,
+    MAX_C = MIDDLE_C * Math.pow(2, 2),
     DIFF_C = MAX_C - MIDDLE_C;
 
-function soundOut() {
-  var percentX = mouse.x / width,
-      percentY = 1 - mouse.y / height,
+function soundOut(id) {
+  var pulser = new Pulser,
+      touch = touchMap[id],
+      percentX = touch.x / width,
+      percentY = 1 - touch.y / height,
       squareRatio = DIFF_C * (percentX / 3) + (percentY * 2/3);
   // TODO: Work on the equation?
-  pulse1.pulse(MIDDLE_C + squareRatio, 100, function () {
-    if (callAgain) {
-      soundOut();
+  pulser.pulse(MIDDLE_C + squareRatio, 100, function () {
+    if (touchMap[id]) {
+      soundOut(id);
     }
   });
 }
 
-// When the person initially clicks, send out a sound
-mouse.on('down', function (x, y) {
-  callAgain = true;
-  soundOut();
-});
+function updateTouches(e) {
+  var touches = e.touches,
+      touch,
+      id,
+      i = 0,
+      len = touches.length,
+      seenBefore;
 
-// When the person click is released, stop sending sounds
-mouse.on('up', function (x, y) {
-  callAgain = false;
+  // Iterate and save the touches
+  for (; i < len; i++) {
+    touch = touches[i];
+    id = touch.identifier;
+
+    seenBefore = !!touchMap[id];
+
+    touchMap[id] = {'x': touch.pageX, 'y': touch.pageY};
+
+    // If the item did not previously exist, start sound out
+    if (!seenBefore) {
+      soundOut(id);
+    }
+  }
+
+}
+
+document.addEventListener('touchstart', updateTouches);
+document.addEventListener('touchmove', updateTouches);
+document.addEventListener('touchend', function (e) {
+  // Remove the changed touches
+  var touches = e.changedTouches,
+      i = 0,
+      len = touches.length;
+  for (; i < len; i++) {
+    delete touchMap[touches[i].identifier];
+  }
 });
 }());
